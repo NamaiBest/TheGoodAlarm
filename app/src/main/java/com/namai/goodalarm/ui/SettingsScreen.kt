@@ -114,7 +114,7 @@ fun SettingsScreen(
         }
         Text(
             "Your song plays inside the Apple Music app, signed in with your own account. " +
-                "If it can't start, the alarm falls back to the song's preview, then the system alarm tone.",
+                "Offline, it plays something you've downloaded in Apple Music instead.",
             color = Palette.tertiary, fontSize = 13.sp,
             modifier = Modifier.padding(horizontal = 34.dp, vertical = 8.dp),
         )

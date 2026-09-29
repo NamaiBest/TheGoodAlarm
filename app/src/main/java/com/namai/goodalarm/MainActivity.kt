@@ -51,6 +51,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,11 +68,14 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.namai.goodalarm.alarm.AlarmScheduler
 import com.namai.goodalarm.alarm.AlarmService
+import com.namai.goodalarm.alarm.RingingState
 import com.namai.goodalarm.alarm.SnoozeStore
 import com.namai.goodalarm.data.Alarm
 import com.namai.goodalarm.data.AlarmRepository
 import com.namai.goodalarm.data.Settings
 import com.namai.goodalarm.music.AppleMusic
+import com.namai.goodalarm.music.AppleMusicController
+import com.namai.goodalarm.music.AppleMusicHelper
 import com.namai.goodalarm.music.MediaListenerService
 import com.namai.goodalarm.ui.AlarmEditor
 import com.namai.goodalarm.ui.AlarmListScreen
@@ -82,6 +86,7 @@ import com.namai.goodalarm.ui.SettingsScreen
 import com.namai.goodalarm.ui.SetupIssue
 import com.namai.goodalarm.ui.glass
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.Calendar
 
 class MainActivity : ComponentActivity() {
@@ -130,7 +135,7 @@ private fun App() {
 
     val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { tick++ }
     val permissions = remember(tick) { permissionRows(context) }
-    val issues = permissions.filter { !it.granted && it.key != "session" }.map {
+    val issues = permissions.filter { !it.granted }.map {
         SetupIssue(it.key, it.title, it.body, "Allow")
     }
     val snoozes = remember(tick, alarms) { alarms.mapNotNull { a -> SnoozeStore.get(context, a.id)?.let { a.id to it } }.toMap() }
@@ -145,6 +150,8 @@ private fun App() {
             }
             "exact" -> context.startActivity(Intent(AndroidSettings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, pkg))
             "battery" -> context.startActivity(Intent(AndroidSettings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, pkg))
+            "overlay" -> context.startActivity(Intent(AndroidSettings.ACTION_MANAGE_OVERLAY_PERMISSION, pkg))
+            "helper" -> context.startActivity(Intent(AndroidSettings.ACTION_ACCESSIBILITY_SETTINGS))
             "session" -> context.startActivity(
                 Intent(AndroidSettings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS).putExtra(
                     AndroidSettings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME,
@@ -153,6 +160,41 @@ private fun App() {
             )
         }
     }
+
+    val scope = rememberCoroutineScope()
+    var preparing by remember { mutableStateOf(false) }
+
+    /**
+     * Loads the next alarm's song as Apple Music's current track, so the alarm can start it
+     * even while the phone is locked.
+     */
+    fun prepareNextSong(announce: Boolean) {
+        if (preparing || RingingState.current.value != null) return
+        val next = alarms.filter { it.enabled && it.song != null }
+            .minByOrNull { AlarmScheduler.nextTrigger(it) } ?: return
+        val song = next.song ?: return
+        // Automatic attempts (on opening the app) at most every 30 minutes per song.
+        val prefs = context.getSharedPreferences("apple_music", Context.MODE_PRIVATE)
+        val key = "prepared_${song.id}"
+        if (!announce && System.currentTimeMillis() - prefs.getLong(key, 0) < 30 * 60_000L) return
+        prefs.edit().putLong(key, System.currentTimeMillis()).apply()
+        preparing = true
+        scope.launch {
+            val apple = AppleMusicController(context)
+            val ok = apple.prepare(song, settings.storefront)
+            if (apple.openedAppleMusic) {
+                context.startActivity(
+                    Intent(context, MainActivity::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT),
+                )
+            }
+            if (announce || apple.openedAppleMusic) {
+                toast = if (ok) "“${song.title}” is ready in Apple Music" else "Couldn't load the song yet – will retry"
+            }
+            preparing = false
+        }
+    }
+    LaunchedEffect(tick) { if (tick > 0 && sheet == null) prepareNextSong(announce = false) }
 
     BackHandler(enabled = sheet != null) { sheet = null }
 
@@ -246,6 +288,7 @@ private fun App() {
                                 AlarmScheduler.schedule(context, saved)
                                 sheet = null
                                 toast = untilText(saved)
+                                if (saved.song != null) scope.launch { delay(1_500); prepareNextSong(announce = true) }
                                 if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(
                                         context, Manifest.permission.POST_NOTIFICATIONS,
                                     ) != PackageManager.PERMISSION_GRANTED
@@ -316,8 +359,16 @@ private fun permissionRows(context: Context): List<PermissionRow> {
         context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName),
     )
     rows += PermissionRow(
-        "session", "Media control (backup)", "Optional: another way to reach Apple Music if the direct connection fails.",
+        "overlay", "Show alarm on top", "Opens the full-screen alarm even while you're using the phone.",
+        AndroidSettings.canDrawOverlays(context),
+    )
+    rows += PermissionRow(
+        "session", "Media control", "Lets the alarm start, loop and stop Apple Music.",
         AppleMusic.hasSessionAccess(context),
+    )
+    rows += PermissionRow(
+        "helper", "Apple Music helper", "Answers Apple Music's \"keep queue?\" prompt so your song can play.",
+        AppleMusicHelper.isEnabled(context),
     )
     return rows
 }

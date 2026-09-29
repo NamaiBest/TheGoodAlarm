@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Good Alarm</string>
+    <string name="helper_label">Good Alarm – Apple Music helper</string>
+    <string name="helper_description">Apple Music doesn\'t let other apps choose a song, so when you set an alarm this opens your alarm song in Apple Music, taps it and clears the old queue. It only looks at Apple Music, and only for a few seconds at a time.</string>
 </resources>

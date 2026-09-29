@@ -30,6 +30,9 @@ class AlarmReceiver : BroadcastReceiver() {
                 context.getSystemService(android.app.NotificationManager::class.java)
                     .cancel(AlarmService.snoozeNotificationId(id))
             }
+            ACTION_DEBUG_STOP -> if (isDebuggable(context)) {
+                context.startService(AlarmService.action(context, AlarmService.ACTION_DISMISS))
+            }
             Intent.ACTION_BOOT_COMPLETED,
             Intent.ACTION_MY_PACKAGE_REPLACED,
             Intent.ACTION_TIME_CHANGED,
@@ -40,6 +43,10 @@ class AlarmReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_FIRE = "com.namai.goodalarm.FIRE"
         const val ACTION_CANCEL_SNOOZE = "com.namai.goodalarm.CANCEL_SNOOZE"
+        private const val ACTION_DEBUG_STOP = "com.namai.goodalarm.DEBUG_STOP"
+
+        private fun isDebuggable(context: Context) =
+            context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
         const val EXTRA_ID = "id"
         const val EXTRA_SNOOZE = "snooze"
     }

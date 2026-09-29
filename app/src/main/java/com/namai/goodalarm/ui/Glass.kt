@@ -45,6 +45,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.animation.core.animate
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -296,9 +300,10 @@ fun WheelPicker(
 /** "Slide to stop" track with a draggable thumb, like the old iPhone lock screen. */
 @Composable
 fun SlideToStop(text: String, onComplete: () -> Unit, modifier: Modifier = Modifier) {
-    val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
-    val offset = remember { Animatable(0f) }
+    // Plain state updated synchronously on every drag delta, so the thumb tracks the finger 1:1.
+    var x by remember { mutableFloatStateOf(0f) }
+    var done by remember { mutableStateOf(false) }
     val shimmer = rememberInfiniteTransition(label = "shimmer")
     val sx by shimmer.animateFloat(
         -300f, 900f, infiniteRepeatable(tween(2200, easing = LinearEasing)), label = "sx",
@@ -313,7 +318,7 @@ fun SlideToStop(text: String, onComplete: () -> Unit, modifier: Modifier = Modif
         val thumb = 64.dp
         val density = LocalDensity.current
         val maxPx = with(density) { (maxWidth - thumb - 12.dp).toPx() }
-        val progress = if (maxPx > 0) offset.value / maxPx else 0f
+        val progress = if (maxPx > 0) x / maxPx else 0f
         Text(
             text,
             modifier = Modifier.fillMaxWidth().padding(start = 64.dp).graphicsLayer { alpha = 1f - progress * 1.6f },
@@ -327,28 +332,33 @@ fun SlideToStop(text: String, onComplete: () -> Unit, modifier: Modifier = Modif
                 ),
             ),
         )
+        // The drag area is the whole (stationary) track, not the moving thumb.
         Box(
             Modifier
-                .offset { IntOffset(offset.value.roundToInt(), 0) }
-                .padding(6.dp)
-                .size(thumb)
-                .shadow(8.dp, CircleShape)
-                .background(Color.White, CircleShape)
+                .matchParentSize()
                 .draggable(
                     orientation = Orientation.Horizontal,
-                    state = rememberDraggableState { delta ->
-                        scope.launch { offset.snapTo((offset.value + delta).coerceIn(0f, maxPx)) }
-                    },
+                    enabled = !done,
+                    state = rememberDraggableState { delta -> x = (x + delta).coerceIn(0f, maxPx) },
                     onDragStopped = { velocity ->
-                        if (offset.value > maxPx * 0.65f || (velocity > 2500f && offset.value > maxPx * 0.25f)) {
+                        if (x > maxPx * 0.6f || (velocity > 2000f && x > maxPx * 0.2f)) {
+                            done = true
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            offset.animateTo(maxPx, tween(120))
                             onComplete()
+                            animate(x, maxPx, animationSpec = tween(120)) { v, _ -> x = v }
                         } else {
-                            offset.animateTo(0f, spring(dampingRatio = 0.55f, stiffness = 300f))
+                            animate(x, 0f, animationSpec = spring(dampingRatio = 0.55f, stiffness = 300f)) { v, _ -> x = v }
                         }
                     },
                 ),
+        )
+        Box(
+            Modifier
+                .offset { IntOffset(x.roundToInt(), 0) }
+                .padding(6.dp)
+                .size(thumb)
+                .shadow(8.dp, CircleShape)
+                .background(Color.White, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Icon(

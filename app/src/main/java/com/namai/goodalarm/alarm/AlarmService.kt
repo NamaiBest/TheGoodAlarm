@@ -41,7 +41,7 @@ import org.json.JSONObject
 import java.text.DateFormat
 import java.util.Date
 
-enum class SoundSource { Connecting, AppleMusic, Tone }
+enum class SoundSource { Connecting, AppleMusic, AppleMusicLibrary, Tone }
 
 data class Ringing(val alarm: Alarm, val source: SoundSource, val isTest: Boolean)
 
@@ -104,12 +104,7 @@ class AlarmService : Service() {
         wakeLock = getSystemService(PowerManager::class.java)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "GoodAlarm:ring")
             .apply { acquire(settings.ringMinutes * 60_000L + 60_000L) }
-        try {
-            // Works when the screen is off or the app is in front; otherwise the full-screen
-            // notification takes over.
-            startActivity(Intent(this, RingActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        } catch (_: Exception) {
-        }
+        showRingScreen()
         if (alarm.vibrate) startVibration()
 
         ringJob?.cancel()
@@ -117,17 +112,35 @@ class AlarmService : Service() {
             stopSound()
             val song = alarm.song
             var viaApple = false
+            var result = AppleMusicController.Result.Nothing
             if (song != null && AppleMusic.isInstalled(this@AlarmService)) {
                 val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                 savedMusicVolume = savedMusicVolume ?: audio.getStreamVolume(AudioManager.STREAM_MUSIC)
                 setMusicVolume(if (settings.fadeIn) 0.15f else 1f, max)
-                viaApple = apple.play(song)
+                result = try {
+                    apple.play(song, settings.storefront)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Never let an Apple Music problem take the alarm down with it.
+                    Log.e("GoodAlarm", "Apple Music playback failed", e)
+                    AppleMusicController.Result.Nothing
+                }
+                viaApple = result != AppleMusicController.Result.Nothing
+                // Opening the song brought Apple Music to the front; put the alarm back on top.
+                showRingScreen()
             }
             if (!viaApple) {
                 Log.i("GoodAlarm", "Using fallback tone")
                 tone.playAlarm(song?.previewUrl)
             }
-            update(if (viaApple) SoundSource.AppleMusic else SoundSource.Tone)
+            update(
+                when (result) {
+                    AppleMusicController.Result.ChosenSong -> SoundSource.AppleMusic
+                    AppleMusicController.Result.OtherMusic -> SoundSource.AppleMusicLibrary
+                    AppleMusicController.Result.Nothing -> SoundSource.Tone
+                },
+            )
 
             if (viaApple) {
                 val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
@@ -154,6 +167,21 @@ class AlarmService : Service() {
         scope.launch {
             delay(settings.ringMinutes * 60_000L)
             if (ringing === state || ringing?.alarm?.id == alarm.id) finish(snooze = alarm.snoozeEnabled)
+        }
+    }
+
+    /**
+     * Opens the full-screen alarm. Starting an activity from the background needs the
+     * "display over other apps" permission; without it the full-screen notification is used.
+     */
+    private fun showRingScreen() {
+        try {
+            startActivity(
+                Intent(this, RingActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT),
+            )
+        } catch (e: Exception) {
+            Log.w("GoodAlarm", "Couldn't open ring screen", e)
         }
     }
 
