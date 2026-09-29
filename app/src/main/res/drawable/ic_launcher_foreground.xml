@@ -1,16 +1,34 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <!-- dial -->
-    <path android:pathData="M54,54m-25,0a25,25 0 1,0 50,0a25,25 0 1,0 -50,0"
-        android:fillColor="#14FFFFFF" android:strokeColor="#E6FFFFFF" android:strokeWidth="1.6" />
-    <!-- hour ticks -->
-    <path android:pathData="M54.00,35.80L54.00,32.50M63.75,37.11L64.75,35.38M70.89,44.25L72.62,43.25M72.20,54.00L75.50,54.00M70.89,63.75L72.62,64.75M63.75,70.89L64.75,72.62M54.00,72.20L54.00,75.50M44.25,70.89L43.25,72.62M37.11,63.75L35.38,64.75M35.80,54.00L32.50,54.00M37.11,44.25L35.38,43.25M44.25,37.11L43.25,35.38"
-        android:strokeColor="#99FFFFFF" android:strokeWidth="1.3" android:strokeLineCap="round" />
-    <!-- hands: 10:10 -->
-    <path android:pathData="M54,54L43.6,48" android:strokeColor="#FFFFFFFF" android:strokeWidth="2.6" android:strokeLineCap="round" />
-    <path android:pathData="M54,54L67.9,40.1" android:strokeColor="#FFFFFFFF" android:strokeWidth="1.9" android:strokeLineCap="round" />
-    <!-- second hand in Apple Music red -->
-    <path android:pathData="M50.5,57.5L70.2,37.8" android:strokeColor="#FFFA2D48" android:strokeWidth="1" android:strokeLineCap="round" />
-    <path android:pathData="M54,54m-1.6,0a1.6,1.6 0 1,0 3.2,0a1.6,1.6 0 1,0 -3.2,0" android:fillColor="#FFFA2D48" />
+    <!-- bells -->
+    <path android:fillColor="#FFF2F2F7" android:pathData="M37,38.5m-9,0a9,9 0 1,0 18,0a9,9 0 1,0 -18,0" />
+    <path android:fillColor="#FFF2F2F7" android:pathData="M71,38.5m-9,0a9,9 0 1,0 18,0a9,9 0 1,0 -18,0" />
+    <!-- hammer -->
+    <path android:fillColor="#FFF2F2F7" android:pathData="M52.8,32.5h2.4v6h-2.4z" />
+    <path android:fillColor="#FFF2F2F7" android:pathData="M54,31.8m-2.6,0a2.6,2.6 0 1,0 5.2,0a2.6,2.6 0 1,0 -5.2,0" />
+    <!-- legs -->
+    <path android:pathData="M41.5,72.5L37.5,78.5M66.5,72.5L70.5,78.5"
+        android:strokeColor="#FFF2F2F7" android:strokeWidth="3.6" android:strokeLineCap="round" />
+    <!-- face, with a dark gap separating it from the bells -->
+    <path android:pathData="M54,57m-21,0a21,21 0 1,0 42,0a21,21 0 1,0 -42,0"
+        android:strokeColor="#FF161618" android:strokeWidth="3.2">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="54" android:startY="36"
+                android:endX="54" android:endY="78">
+                <item android:offset="0" android:color="#FFFFFFFF" />
+                <item android:offset="1" android:color="#FFE3E3E8" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- ticks -->
+    <path android:pathData="M54.00,42.80L54.00,39.70M61.75,43.58L62.65,42.02M67.42,49.25L68.98,48.35M68.20,57.00L71.30,57.00M67.42,64.75L68.98,65.65M61.75,70.42L62.65,71.98M54.00,71.20L54.00,74.30M46.25,70.42L45.35,71.98M40.58,64.75L39.02,65.65M39.80,57.00L36.70,57.00M40.58,49.25L39.02,48.35M46.25,43.58L45.35,42.02"
+        android:strokeColor="#FF8E8E93" android:strokeWidth="1.1" android:strokeLineCap="round" />
+    <!-- hands at 10:10 -->
+    <path android:pathData="M54,57L45.3,52" android:strokeColor="#FF1C1C1E" android:strokeWidth="2.8" android:strokeLineCap="round" />
+    <path android:pathData="M54,57L64.6,46.4" android:strokeColor="#FF1C1C1E" android:strokeWidth="2.1" android:strokeLineCap="round" />
+    <!-- second hand, Apple Music red -->
+    <path android:pathData="M51.6,59.4L66.2,44.8" android:strokeColor="#FFFA2D48" android:strokeWidth="0.9" android:strokeLineCap="round" />
+    <path android:fillColor="#FFFA2D48" android:pathData="M54,57m-1.5,0a1.5,1.5 0 1,0 3,0a1.5,1.5 0 1,0 -3,0" />
 </vector>
