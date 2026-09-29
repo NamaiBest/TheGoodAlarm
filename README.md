@@ -1,44 +1,42 @@
 # The Good Alarm
 
-A glass-styled Android alarm clock that wakes you up with **any song from Apple Music**.
+I use Apple Music on a Samsung S23, and Samsung's Clock app only lets you wake up to Spotify. So I made my own alarm app that plays whatever song I pick from Apple Music.
 
-Samsung's Clock app can only use Spotify for alarms. Good Alarm searches the Apple Music catalogue, and at alarm time it tells the Apple Music app, signed in with your own account, to play the track you picked on repeat.
+It's a normal alarm clock otherwise: repeat days, labels, snooze, vibration, and a slide to stop. The UI is dark with Apple Music red.
 
-## Features
+## Using it
 
-- iOS-style wheel time picker, repeat days, labels, snooze (1–30 min), vibration
-- Search the Apple Music catalogue with artwork and 30-second previews
-- Full-screen ringing screen over the lock screen with Snooze and **slide to stop**
-- Gradual volume increase, configurable alarm volume and ring duration
-- Survives reboots, time changes and timezone changes
-- Works on the lock screen; offline it plays your downloaded Apple Music songs
+1. Tap + and set a time.
+2. Under Sound, search for any song on Apple Music and pick one. You can preview it first.
+3. Save.
 
-## How the Apple Music part works
+That's it. When the alarm goes off, the song plays in the Apple Music app on repeat until you stop or snooze it.
 
-Apple Music on Android won't let other apps start a specific song. It ignores "play this ID/URI/search" media commands and just resumes its last track, and it refuses the Android Auto browser connection. So Good Alarm works with that behaviour:
+## How it gets Apple Music to play the right song
 
-1. **Search** uses Apple's public iTunes Search API (no developer token or login). The store region is taken from your SIM.
-2. **Pre-load.** When you save an alarm, or open the app, Good Alarm opens the song's `music.apple.com` page in Apple Music. An accessibility helper then taps the song and answers **Clear** to the "keep or clear your queue?" prompt. The song starts muted and is paused straight away, which makes it Apple Music's current track. It's skipped if you're in the middle of listening to something.
-3. **At alarm time** the app keeps Apple Music awake (One UI freezes background apps, and a frozen app ignores commands). It resumes the pre-loaded song through Apple Music's media session and sets repeat-one. This works on the lock screen. If the phone is unlocked and the song isn't loaded, it loads it right then.
-4. **Fallbacks.** If the song can't play (for example, you listened to something else and you're offline), it plays whatever Apple Music has, which means your downloads when offline. Only if Apple Music can't play anything at all does it use the song preview, then the system alarm tone.
-5. On Stop or Snooze it pauses Apple Music and restores your repeat mode and volume.
+Apple Music on Android doesn't let other apps say "play this song". If you send it a play command, it just resumes whatever you listened to last. So the app works around that:
 
-The helper only receives events from Apple Music, and only acts during those few seconds. Nothing runs between alarms, apart from the alarm itself being scheduled with the system.
+- When you save an alarm (or open the app), it opens your song in Apple Music, taps it, clears the old queue, and pauses it right away with the volume muted. Your song is now the "last played" track.
+- At alarm time it just hits play. This works even when the phone is locked.
+- If you're offline, it plays something you've downloaded in Apple Music. The regular alarm tone is only used if Apple Music can't play anything at all.
 
-### One-time setup on the phone
+The tapping is done by a small accessibility service. It only looks at Apple Music, and only for the few seconds it takes to load the song.
 
-Open **Settings (gear) → Permissions** and allow everything listed:
+One catch: if you listen to other music after setting the alarm, open the app once before bed so it can load your alarm song again.
 
-- **Show alarm on top**: full-screen alarm even while you're using the phone
-- **Media control** (notification access): lets the alarm start, loop and stop Apple Music
-- **Apple Music helper** (accessibility): taps your song in Apple Music. Android switches it off whenever the app is updated or force-stopped, so re-enable it after reinstalling.
-- **Unrestricted battery**, **Full-screen alarms**, **Notifications**
+## Setup
 
-## Build and install
+The first time, open Settings (the gear) and allow everything in the Permissions list: notifications, full-screen alarms, show on top, media control, the Apple Music helper, and unrestricted battery. Samsung puts apps to sleep otherwise.
 
-Requires JDK 17 and the Android SDK (compileSdk 36).
+Android turns the Apple Music helper off whenever the app is updated, so if you reinstall it, switch it back on.
+
+## Building
+
+You need JDK 17 and the Android SDK.
 
 ```sh
 ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+Search uses Apple's public iTunes Search API, so there's no API key or developer account needed.
